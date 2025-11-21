@@ -7,6 +7,8 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
+  # supabase_flutter: (removed - using REST-based sync)
+  # sign_in_with_apple: (removed - not needed on Android)
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   path_provider: ^2.1.4

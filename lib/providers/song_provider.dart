@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/song.dart';
 import '../services/local_db.dart';
 import '../services/remote_sync.dart';
+import '../services/remote_sync_base.dart';
+import '../services/remote_sync_supabase.dart';
+import '../config.dart';
 
 /// Provider for the local Hive database service
 final localDbProvider = Provider<LocalDb>((ref) => LocalDb());
@@ -12,8 +15,14 @@ final updatesUrlProvider = Provider<String>((ref) =>
     'https://cyb-here.github.io/Lyrics-App-Data/update.json'); // replace with your actual URL
 
 /// Provider for the remote sync service
-final remoteSyncProvider = Provider<RemoteSync>((ref) =>
-    RemoteSync(localDb: ref.read(localDbProvider), updatesUrl: ref.read(updatesUrlProvider)));
+final remoteSyncProvider = Provider<RemoteSyncBase>((ref) {
+  // If Supabase config is provided, use Supabase-backed sync; otherwise fall back to JSON remote.
+  if (SUPABASE_URL.isNotEmpty && SUPABASE_ANON_KEY.isNotEmpty) {
+    final db = ref.read(localDbProvider);
+    return RemoteSyncSupabase(localDb: db, supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY);
+  }
+  return RemoteSync(localDb: ref.read(localDbProvider), updatesUrl: ref.read(updatesUrlProvider));
+});
 
 /// StateNotifierProvider that manages the list of songs
 final songsProvider =

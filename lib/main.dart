@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/category_list.dart';
 import 'providers/song_provider.dart';
+import 'services/supabase_service.dart';
 
-void main() {
+// Initialize Supabase here if config is provided.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initSupabase();
   runApp(const ProviderScope(child: LyricsApp()));
 }
 

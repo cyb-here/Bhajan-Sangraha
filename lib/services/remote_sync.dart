@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/song.dart';
 import 'local_db.dart';
+import 'remote_sync_base.dart';
 
-class RemoteSync {
+class RemoteSync implements RemoteSyncBase {
   final LocalDb localDb;
   final String updatesUrl;
   RemoteSync({required this.localDb, required this.updatesUrl});
 
+  @override
   Future<int> sync() async {
     final res = await http.get(Uri.parse(updatesUrl));
     if (res.statusCode != 200) {

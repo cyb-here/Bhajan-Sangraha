@@ -1,20 +1,242 @@
 [
   {
-    "id": 1,
-    "title": "Aarti",
-    "lyrics": "Ganapati Bappa Morya...",
+    "id": 3,
+    "title": "Jay Dev Jay Dev (Aarti)",
+    "lyrics": "जय देव जय देव श्रीमंगेशा । पंचारति ओवाळू सदया सर्वेशा ॥\nसदया सगुणा शंभो अजिनांबरधारी । गौरीरमणा आद्या मदनांतकारी ॥\nत्रिपुरारी अधहारी शिवमस्तकधारी । विश्वंभर विरुदे हैं नम संकट धारी ॥",
     "language": "marathi",
     "category": "devotional",
-    "imageUrl": "https://username.github.io/lyrics-app-data/images/devotional.png",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 4,
+    "title": "You Are My Heartbeat",
+    "lyrics": "You are my heartbeat, life within me;\nYou are my refuge when trouble comes.\nCloser than breathing, holding and healing,\nPatiently kneeling and calling me on.\nYou are the Way and I will follow,\nYou are the Truth, I will believe,\nYou are the Life, my soul rejoices,\nForever with you I will be.",
+    "language": "english",
+    "category": "romantic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 5,
+    "title": "Marathi Folk Song (Gadi Chalali Ghungarachi)",
+    "lyrics": "गाडी चालली घुंगराची, गाडी चालली घुंगराची ।\nगाडी चालली घुंगराची, गाडी चालली घुंगराची ।\nघुंगरू वाजती नादाची, गाडी चालली घुंगराची ॥",
+    "language": "marathi",
+    "category": "folk",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 6,
+    "title": "Vande Mataram",
+    "lyrics": "वन्दे मातरम्।\nसुजलां सुफलां मलयजशीतलाम्\nशस्यशामलां मातरम्।\nवन्दे मातरम्।\nशुभ्रज्योत्स्ना पुलकितयामिनीम्\nफुल्लकुसुमित द्रुमदलशोभिनीम्\nसुहासिनीं सुमधुर भाषिणीम्\nसुखदां वरदां मातरम्॥",
+    "language": "hindi",
+    "category": "patriotic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 7,
+    "title": "Raag Yaman Bandish",
+    "lyrics": "अरी एरी आली पिया बिन\nमोरे नैनन में आँसू भर आए\nसंगीत में रचले मन\nसा रे गा मा पा धा नि सा\nसा नि धा पा मा गा रे सा",
+    "language": "marathi",
+    "category": "classic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 8,
+    "title": "Dance to the Rhythm",
+    "lyrics": "Feel the beat, let it take control,\nMove your feet, let the rhythm flow.\nHands in the air, the night's alive,\nLose yourself, let the music thrive.\nSpin around, let the world fade away,\nEvery move, it's your time to play.\nHeartbeat racing, lights are aglow,\nFeel the magic, let it grow.",
+    "language": "english",
+    "category": "pop",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 9,
+    "title": "Ganpati Bappa Morya",
+    "lyrics": "गणपती बाप्पा मोरया, पुढच्या वर्षी लवकर या\nमंगलमुर्ती मोरया, सुखकर्ता दुःखहर्ता\nविघ्नहर्ता गणराजा, भक्तांचे संकट हरतो\nगणपती बाप्पा मोरया!",
+    "language": "marathi",
+    "category": "devotional",
     "updatedAt": "2025-11-20"
   },
   {
-    "id": 2,
-    "title": "Love Song",
-    "lyrics": "You are my sunshine...",
-    "language": "english",
+    "id": 10,
+    "title": "Tum Hi Ho",
+    "lyrics": "तुम ही हो, तुम ही हो\nज़िंदगी अब तुम ही हो\nचैन भी, मेरा दर्द भी\nमेरी आशिकी अब तुम ही हो",
+    "language": "hindi",
     "category": "romantic",
-    "imageUrl": "https://username.github.io/lyrics-app-data/images/romantic.png",
     "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 11,
+    "title": "Zingaat",
+    "lyrics": "आताचं बायकोचं नाव सांगितलं तर\nझिंग झिंग झिंग झिंग झिंगाट\nडान्स करायला लाज वाटत नाही\nझिंग झिंग झिंग झिंग झिंगाट",
+    "language": "marathi",
+    "category": "folk",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 12,
+    "title": "Maa Tujhe Salaam",
+    "lyrics": "माँ तुझे सलाम\nवतन मेरा इंडिया\nमाँ तुझे सलाम\nतेरी मिट्टी में मिल जावाँ\nगुल बनके मैं खिल जावाँ",
+    "language": "hindi",
+    "category": "patriotic",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 13,
+    "title": "Shree Ram Jai Ram",
+    "lyrics": "श्रीराम जय राम जय जय राम\nश्रीराम जय राम जय जय राम\nभक्तजन वंदित राम\nश्रीराम जय राम जय जय राम",
+    "language": "marathi",
+    "category": "devotional",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 14,
+    "title": "Pehla Nasha",
+    "lyrics": "पहला नशा, पहला खुमार\nनया प्यार है, नया इंतज़ार\nकर लूँ मैं क्या अपना हाल\nऐ दिल-ए-बेकरार",
+    "language": "hindi",
+    "category": "romantic",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 15,
+    "title": "Lavani Song",
+    "lyrics": "संगीताची लय भारी\nनाचते गावकरी सारी\nढोल ताशांचा नाद\nलावणीचा रंग खास",
+    "language": "marathi",
+    "category": "folk",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 16,
+    "title": "Ae Mere Watan Ke Logon",
+    "lyrics": "ऐ मेरे वतन के लोगों\nज़रा आँख में भर लो पानी\nजो शहीद हुए हैं उनकी\nज़रा याद करो क़ुर्बानी",
+    "language": "hindi",
+    "category": "patriotic",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 17,
+    "title": "Raag Bhairav Bandish",
+    "lyrics": "प्रभु मोरे अवगुन चित न धरो\nसा रे गा मा पा धा नि सा\nसा नि धा पा मा गा रे सा",
+    "language": "marathi",
+    "category": "classic",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 18,
+    "title": "Shape of You",
+    "lyrics": "I'm in love with the shape of you\nWe push and pull like a magnet do\nAlthough my heart is falling too\nI'm in love with your body",
+    "language": "english",
+    "category": "pop",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 19,
+    "title": "Vitthal Vitthal",
+    "lyrics": "विठ्ठल विठ्ठल विठ्ठल\nपांडुरंग विठ्ठल\nभक्तजनांचा आधार\nविठ्ठल विठ्ठल",
+    "language": "marathi",
+    "category": "devotional",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 20,
+    "title": "Tera Hone Laga Hoon",
+    "lyrics": "तेरा होने लगा हूँ\nखोया हूँ मैं कहीं\nतेरा होने लगा हूँ\nखोया हूँ मैं कहीं",
+    "language": "hindi",
+    "category": "romantic",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 21,
+    "title": "Jogwa Song",
+    "lyrics": "जोगवा मागतो आई\nजोगवा मागतो आई\nभक्तीचा रंग चढतो\nजोगवा मागतो आई",
+    "language": "marathi",
+    "category": "folk",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 22,
+    "title": "Jana Gana Mana",
+    "lyrics": "जन गण मन अधिनायक जय हे\nभारत भाग्य विधाता\nपंजाब सिंध गुजरात मराठा\nद्राविड उत्कल बंग",
+    "language": "hindi",
+    "category": "patriotic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 23,
+    "title": "Har Har Mahadev",
+    "lyrics": "हर हर महादेव\nशिव शंकर भोलेनाथ\nभक्तजनांचा आधार\nहर हर महादेव",
+    "language": "marathi",
+    "category": "devotional",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 24,
+    "title": "Kal Ho Naa Ho",
+    "lyrics": "हर घड़ी बदल रही है रूप ज़िंदगी\nछाँव है कभी, धूप ज़िंदगी\nहर पल यहाँ जी भर जियो\nजो है समा, कल हो ना हो",
+    "language": "hindi",
+    "category": "romantic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 25,
+    "title": "Pinga",
+    "lyrics": "पिंग्या पिंग्या पिंग्या\nनाचते गावकरी सारी\nढोल ताशांचा नाद\nपिंग्या रंग खास",
+    "language": "marathi",
+    "category": "folk",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 26,
+    "title": "Sare Jahan Se Achha",
+    "lyrics": "सारे जहाँ से अच्छा\nहिंदोस्ताँ हमारा\nहम बुलбुलें हैं इसकी\nयह गुलिस्ताँ हमारा",
+    "language": "hindi",
+    "category": "patriotic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 27,
+    "title": "Raag Kafi Bandish",
+    "lyrics": "मन मोहन मन मोहन\nसा रे गा मा पा धा नि सा\nसा नि धा पा मा गा रे सा",
+    "language": "marathi",
+    "category": "classic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 28,
+    "title": "Blinding Lights",
+    "lyrics": "I said, ooh, I'm blinded by the lights\nNo, I can't sleep until I feel your touch",
+    "language": "english",
+    "category": "pop",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 29,
+    "title": "Vitthal Namachi Gaani",
+    "lyrics": "विठ्ठल नामाची गाणी\nभक्तजनांचा आधार\nपांडुरंग विठ्ठल\nविठ्ठल विठ्ठल",
+    "language": "marathi",
+    "category": "devotional",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 30,
+    "title": "Chura Liya Hai Tumne",
+    "lyrics": "चुरा लिया है तुमने जो दिल को\nनज़र नहीं चुराना सनम\nबदले मेरी दुनिया सारी\nतुमने, तुमने",
+    "language": "hindi",
+    "category": "romantic",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 31,
+    "title": "Koli Geet",
+    "lyrics": "समुद्राच्या लाटांवर\nकोळी гातात गाणी\nनौका चालते पुढे\nकोळी गातात गाणी",
+    "language": "marathi",
+    "category": "folk",
+    "updatedAt": "2025-11-21"
+  },
+  {
+    "id": 32,
+    "title": "Desh Rangeela",
+    "lyrics": "देश रंगीला रंगीला\nभारत रंगीला\nदेश रंगीला रंगीला\nभारत रंगीला",
+    "language": "hindi",
+    "category": "patriotic",
+    "updatedAt": "2025-11-21"
   }
 ]
