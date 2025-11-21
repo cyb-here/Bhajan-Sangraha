@@ -20,19 +20,52 @@ class Song {
   });
 
   factory Song.fromMap(Map<String, dynamic> map) {
+    // Accept both camelCase and snake_case keys coming from different sources
+    final dynamic rawId = map['id'] ?? map['Id'];
+    final id = rawId is String ? int.tryParse(rawId) ?? 0 : (rawId ?? 0);
+
+    final title = (map['title'] ?? map['Title'] ?? '')?.toString();
+    final lyrics = (map['lyrics'] ?? map['Lyrics'] ?? '')?.toString();
+    final language = (map['language'] ?? map['lang'] ?? '')?.toString();
+    final category = (map['category'] ?? map['Category'] ?? '')?.toString();
+
+    // updatedAt might come as `updatedAt` or `updated_at` or be absent
+    final updatedRaw = map['updatedAt'] ?? map['updated_at'] ?? map['updatedat'] ?? map['updatedAt'];
+    DateTime updatedAt;
+    try {
+      if (updatedRaw == null) {
+        updatedAt = DateTime.now();
+      } else if (updatedRaw is DateTime) {
+        updatedAt = updatedRaw;
+      } else {
+        updatedAt = DateTime.parse(updatedRaw.toString());
+      }
+    } catch (_) {
+      updatedAt = DateTime.now();
+    }
+
+    double? fontSize;
+    final fs = map['fontSize'] ?? map['font_size'] ?? map['fontsize'];
+    if (fs != null) {
+      if (fs is num) fontSize = fs.toDouble();
+      else {
+        final parsed = double.tryParse(fs.toString());
+        if (parsed != null) fontSize = parsed;
+      }
+    }
+
+    final favRaw = map['favorite'] ?? map['is_favorite'] ?? map['fav'] ?? false;
+    final favorite = favRaw is bool ? favRaw : favRaw.toString().toLowerCase() == 'true';
+
     return Song(
-      id: map['id'] is String ? int.parse(map['id']) : map['id'],
-      title: map['title'],
-      lyrics: map['lyrics'],
-      language: map['language'],
-      category: map['category'],
-      updatedAt: DateTime.parse(map['updatedAt']),
-      fontSize: map.containsKey('fontSize') && map['fontSize'] != null
-          ? (map['fontSize'] is num ? (map['fontSize'] as num).toDouble() : double.parse(map['fontSize'].toString()))
-          : null,
-      favorite: map.containsKey('favorite')
-          ? (map['favorite'] is bool ? map['favorite'] : map['favorite'].toString().toLowerCase() == 'true')
-          : false,
+      id: id is int ? id : (id as int),
+      title: title ?? '',
+      lyrics: lyrics ?? '',
+      language: language ?? '',
+      category: category ?? '',
+      updatedAt: updatedAt,
+      fontSize: fontSize,
+      favorite: favorite,
     );
   }
 

@@ -76,13 +76,15 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       // `state` with the full list causes a brief flash where the UI shows
       // all songs before category filters are reapplied.
       // surface a short message for UI listeners (manual or startup sync)
-      ref.read(syncMessageProvider.notifier).state = 'Sync completed: $applied updates';
+      final source = sync is RemoteSyncSupabase ? 'Supabase' : 'Remote';
+      ref.read(syncMessageProvider.notifier).state = '$source sync completed: $applied updates';
       return applied;
     } catch (e) {
       // Keep the provider state intact on error and surface a message so the
       // UI can choose how to react (we avoid forcing an error state that would
       // replace visible lists unexpectedly).
-      ref.read(syncMessageProvider.notifier).state = 'Sync failed: ${e.toString()}';
+      final source = (ref.read(remoteSyncProvider) is RemoteSyncSupabase) ? 'Supabase' : 'Remote';
+      ref.read(syncMessageProvider.notifier).state = '$source sync failed: ${e.toString()}';
       rethrow;
     }
   }
@@ -133,5 +135,98 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       await reloadAll();
     }
     return updated;
+  }
+
+  /// Create a new song (local + remote). Generates an id as max existing id + 1.
+  Future<Song> createSong({
+    required String title,
+    required String lyrics,
+    required String category,
+    bool favorite = false,
+  }) async {
+    final db = ref.read(localDbProvider);
+    final all = await db.getAll();
+    final maxId = all.isEmpty ? 0 : (all.map((s) => s.id).reduce((a, b) => a > b ? a : b));
+    final id = maxId + 1;
+    final now = DateTime.now();
+    final song = Song(
+      id: id,
+      title: title,
+      lyrics: lyrics,
+      language: 'unknown',
+      category: category,
+      updatedAt: now,
+      fontSize: null,
+      favorite: favorite,
+    );
+
+    // push to remote then persist locally
+    final remote = ref.read(remoteSyncProvider);
+    try {
+      await remote.pushSong(song.toMap());
+    } catch (e) {
+      // if remote fails, still persist locally but surface error via syncMessageProvider
+      ref.read(syncMessageProvider.notifier).state = 'Create failed (remote): ${e.toString()}';
+    }
+
+    await db.upsertSong(song);
+    // update state in-place
+    final current = state;
+    if (current is AsyncData<List<Song>>) {
+      final list = List<Song>.from(current.value)..insert(0, song);
+      state = AsyncValue.data(list);
+    } else {
+      await reloadAll();
+    }
+    return song;
+  }
+
+  /// Update an existing song (remote + local)
+  Future<Song?> updateSong(Song updated) async {
+    final db = ref.read(localDbProvider);
+    final now = DateTime.now();
+    final toSave = Song(
+      id: updated.id,
+      title: updated.title,
+      lyrics: updated.lyrics,
+      language: updated.language,
+      category: updated.category,
+      updatedAt: now,
+      fontSize: updated.fontSize,
+      favorite: updated.favorite,
+    );
+    final remote = ref.read(remoteSyncProvider);
+    try {
+      await remote.pushSong(toSave.toMap());
+    } catch (e) {
+      ref.read(syncMessageProvider.notifier).state = 'Update failed (remote): ${e.toString()}';
+    }
+    await db.upsertSong(toSave);
+    final current = state;
+    if (current is AsyncData<List<Song>>) {
+      final list = current.value.map((s) => s.id == toSave.id ? toSave : s).toList();
+      state = AsyncValue.data(list);
+    } else {
+      await reloadAll();
+    }
+    return toSave;
+  }
+
+  /// Delete a song (remote + local)
+  Future<void> deleteSong(int id) async {
+    final remote = ref.read(remoteSyncProvider);
+    try {
+      await remote.deleteSong(id);
+    } catch (e) {
+      ref.read(syncMessageProvider.notifier).state = 'Delete failed (remote): ${e.toString()}';
+    }
+    await ref.read(localDbProvider).deleteSong(id);
+    final current = state;
+    if (current is AsyncData<List<Song>>) {
+      final list = current.value.where((s) => s.id != id).toList();
+      state = AsyncValue.data(list);
+    } else {
+      await reloadAll();
+    }
   }
 }

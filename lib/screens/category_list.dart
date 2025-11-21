@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
 import '../models/song.dart';
 import 'song_detail.dart';
+import 'add_song.dart';
 
 class CategoryListScreen extends ConsumerStatefulWidget {
   const CategoryListScreen({super.key});
@@ -87,6 +88,20 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
       appBar: AppBar(
         title: const Text('Lyrics Categories'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              // open Add Song screen
+              final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddSongScreen()));
+              if (res != null) {
+                // show brief confirmation
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Song added')));
+                // reload list
+                ref.read(songsProvider.notifier).reloadAll();
+              }
+            },
+            tooltip: 'Add song',
+          ),
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () => ref.read(songsProvider.notifier).refreshFromRemote(),

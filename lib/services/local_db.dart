@@ -15,6 +15,12 @@ class LocalDb {
     await Hive.openBox(settingsBoxName);
   }
 
+  Future<void> _ensureInitialized() async {
+    if (!Hive.isBoxOpen(songsBoxName) || !Hive.isBoxOpen(settingsBoxName)) {
+      await init();
+    }
+  }
+
   Future<void> seedFromAssetsIfEmpty() async {
     final box = Hive.box<Map>(songsBoxName);
     if (box.isEmpty) {
@@ -28,11 +34,13 @@ class LocalDb {
   }
 
   Future<void> setLastSelectedCategory(String? category) async {
+    await _ensureInitialized();
     final box = Hive.box(settingsBoxName);
     await box.put('lastCategory', category);
   }
 
   Future<String?> getLastSelectedCategory() async {
+    await _ensureInitialized();
     final box = Hive.box(settingsBoxName);
     final v = box.get('lastCategory');
     if (v == null) return null;
@@ -40,16 +48,19 @@ class LocalDb {
   }
 
   Future<List<Song>> getAll() async {
+    await _ensureInitialized();
     final box = Hive.box<Map>(songsBoxName);
     return box.values.map((e) => Song.fromMap(Map<String, dynamic>.from(e))).toList();
   }
 
   Future<void> upsertSong(Song song) async {
+    await _ensureInitialized();
     final box = Hive.box<Map>(songsBoxName);
     await box.put(song.id, song.toMap());
   }
 
   Future<void> setFavorite(int id, bool value) async {
+    await _ensureInitialized();
     final box = Hive.box<Map>(songsBoxName);
     final m = box.get(id);
     if (m == null) return;

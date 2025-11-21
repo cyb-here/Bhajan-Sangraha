@@ -25,4 +25,17 @@ class RemoteSync implements RemoteSyncBase {
     }
     return applied;
   }
+
+  @override
+  Future<void> pushSong(dynamic song) async {
+    // This implementation is for the static JSON remote and does not support
+    // pushing individual records. Advise using Supabase for CRUD operations.
+    throw Exception('Push not supported for JSON remote sync. Configure Supabase for remote CRUD.');
+  }
+
+  @override
+  Future<void> deleteSong(int id) async {
+    // Deleting against a static JSON source is not possible from the client.
+    throw Exception('Delete not supported for JSON remote sync. Configure Supabase for remote CRUD.');
+  }
 }
