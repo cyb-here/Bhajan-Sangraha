@@ -54,7 +54,14 @@ class RemoteSyncSupabase implements RemoteSyncBase {
       'updated_at': map['updatedAt'] ?? map['updated_at'] ?? DateTime.now().toIso8601String(),
       'favorite': map['favorite'] ?? false,
     };
-    if (map.containsKey('fontSize')) payload['font_size'] = map['fontSize'];
+    // Do not send `created_by` by default because some DBs may not have this column.
+    // Ownership is tracked locally via `createdBy`. If you want server-side
+    // ownership, add a `created_by` text column in your `songs` table and
+    // re-enable sending this field.
+    // Font size is optional and not sent to Supabase by default because many
+    // projects don't include a `font_size` column. The app still persists
+    // font size locally. If you want font sizes in the DB, add the column
+    // and re-enable sending it here.
 
     final uri = Uri.parse('$supabaseUrl/rest/v1/songs?on_conflict=id');
     final res = await http.post(uri, headers: {
@@ -83,6 +90,26 @@ class RemoteSyncSupabase implements RemoteSyncBase {
     });
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('Supabase delete failed: ${res.statusCode} ${res.reasonPhrase} ${res.body}');
+    }
+  }
+
+  /// Push only the font size for a song (upsert id + font_size)
+  @override
+  Future<void> pushFontSize(int id, double fontSize) async {
+    if (supabaseUrl.isEmpty || anonKey.isEmpty) {
+      throw Exception('Supabase not configured (empty URL or anon key)');
+    }
+    final payload = {'id': id, 'font_size': fontSize};
+    final uri = Uri.parse('$supabaseUrl/rest/v1/songs?on_conflict=id');
+    final res = await http.post(uri, headers: {
+      'apikey': anonKey,
+      'Authorization': 'Bearer $anonKey',
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates,return=representation',
+    }, body: jsonEncode([payload]));
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Supabase pushFontSize failed: ${res.statusCode} ${res.reasonPhrase} ${res.body}');
     }
   }
 }

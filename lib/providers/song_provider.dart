@@ -122,6 +122,7 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       updatedAt: s.updatedAt,
       fontSize: s.fontSize,
       favorite: newVal,
+      createdBy: s.createdBy,
     );
     await db.upsertSong(updated);
     // Update the current in-memory state to avoid clearing any active category filter
@@ -137,6 +138,45 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     return updated;
   }
 
+  /// Update only the font size for a song (local + remote push of font_size)
+  Future<void> updateFontSize(int id, double fontSize) async {
+    final db = ref.read(localDbProvider);
+    final all = await db.getAll();
+    final idx = all.indexWhere((s) => s.id == id);
+    if (idx == -1) return;
+    final s = all[idx];
+    final now = DateTime.now();
+    final updated = Song(
+      id: s.id,
+      title: s.title,
+      lyrics: s.lyrics,
+      language: s.language,
+      category: s.category,
+      updatedAt: now,
+      fontSize: fontSize,
+      favorite: s.favorite,
+      createdBy: s.createdBy,
+    );
+
+    // persist locally first
+    await db.upsertSong(updated);
+
+    // update in-memory state
+    final current = state;
+    if (current is AsyncData<List<Song>>) {
+      final list = current.value.map((x) => x.id == id ? updated : x).toList();
+      state = AsyncValue.data(list);
+    }
+
+    // push font size to remote (best-effort)
+    final remote = ref.read(remoteSyncProvider);
+    try {
+      await remote.pushFontSize(id, fontSize);
+    } catch (e) {
+      ref.read(syncMessageProvider.notifier).state = 'Font-size push failed: ${e.toString()}';
+    }
+  }
+
   /// Create a new song (local + remote). Generates an id as max existing id + 1.
   Future<Song> createSong({
     required String title,
@@ -145,6 +185,7 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     bool favorite = false,
   }) async {
     final db = ref.read(localDbProvider);
+    final localUserId = await db.getLocalUserId();
     final all = await db.getAll();
     final maxId = all.isEmpty ? 0 : (all.map((s) => s.id).reduce((a, b) => a > b ? a : b));
     final id = maxId + 1;
@@ -158,6 +199,7 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       updatedAt: now,
       fontSize: null,
       favorite: favorite,
+      createdBy: localUserId,
     );
 
     // push to remote then persist locally
@@ -194,6 +236,7 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       updatedAt: now,
       fontSize: updated.fontSize,
       favorite: updated.favorite,
+      createdBy: updated.createdBy,
     );
     final remote = ref.read(remoteSyncProvider);
     try {

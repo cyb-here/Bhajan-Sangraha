@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
+import '../models/song.dart';
 
 class AddSongScreen extends ConsumerStatefulWidget {
-  const AddSongScreen({super.key});
+  final Song? editing;
+  const AddSongScreen({super.key, this.editing});
 
   @override
   ConsumerState<AddSongScreen> createState() => _AddSongScreenState();
@@ -23,6 +25,18 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
   String? _selectedCategory = categories.first;
 
   @override
+  void initState() {
+    super.initState();
+    final e = widget.editing;
+    if (e != null) {
+      _titleCtl.text = e.title;
+      _lyricsCtl.text = e.lyrics;
+      _favorite = e.favorite;
+      if (e.category.isNotEmpty) _selectedCategory = e.category;
+    }
+  }
+
+  @override
   void dispose() {
     _titleCtl.dispose();
     _lyricsCtl.dispose();
@@ -37,17 +51,31 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
     final category = _selectedCategory ?? 'uncategorized';
 
     try {
-      final song = await ref.read(songsProvider.notifier).createSong(
-        title: title,
-        lyrics: lyrics,
-        category: category,
-        favorite: _favorite,
-      );
-      if (mounted) {
-        Navigator.of(context).pop(song);
+      if (widget.editing == null) {
+        final song = await ref.read(songsProvider.notifier).createSong(
+          title: title,
+          lyrics: lyrics,
+          category: category,
+          favorite: _favorite,
+        );
+        if (mounted) Navigator.of(context).pop(song);
+      } else {
+        final updated = Song(
+          id: widget.editing!.id,
+          title: title,
+          lyrics: lyrics,
+          language: widget.editing!.language,
+          category: category,
+          updatedAt: DateTime.now(),
+          fontSize: widget.editing!.fontSize,
+          favorite: _favorite,
+          createdBy: widget.editing!.createdBy,
+        );
+        await ref.read(songsProvider.notifier).updateSong(updated);
+        if (mounted) Navigator.of(context).pop(updated);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Create failed: ${e.toString()}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: ${e.toString()}')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -55,8 +83,9 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.editing != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Song')),
+      appBar: AppBar(title: Text(isEdit ? 'Edit Song' : 'Add Song')),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Form(
@@ -69,10 +98,13 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
                 validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 8),
+              // Larger lyrics editor for comfortable editing
               TextFormField(
                 controller: _lyricsCtl,
-                decoration: const InputDecoration(labelText: 'Lyrics'),
-                maxLines: 6,
+                decoration: const InputDecoration(labelText: 'Lyrics', alignLabelWithHint: true),
+                maxLines: 18,
+                minLines: 8,
+                keyboardType: TextInputType.multiline,
                 validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 8),
@@ -93,7 +125,7 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _saving ? null : _save,
-                child: _saving ? const CircularProgressIndicator() : const Text('Save'),
+                child: _saving ? const CircularProgressIndicator() : Text(isEdit ? 'Save Changes' : 'Save'),
               ),
             ],
           ),

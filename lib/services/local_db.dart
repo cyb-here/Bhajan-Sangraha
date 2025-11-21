@@ -47,6 +47,24 @@ class LocalDb {
     return v.toString();
   }
 
+  /// Returns a stable local user id stored in settings. If absent, generates and stores one.
+  Future<String> getLocalUserId() async {
+    await _ensureInitialized();
+    final box = Hive.box(settingsBoxName);
+    final key = 'local_user_id';
+    var v = box.get(key);
+    if (v != null) return v.toString();
+    final newId = _generateLocalUserId();
+    await box.put(key, newId);
+    return newId;
+  }
+
+  String _generateLocalUserId() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final rnd = DateTime.now().microsecondsSinceEpoch % 1000000;
+    return 'local_${now.toRadixString(36)}_${rnd.toRadixString(36)}';
+  }
+
   Future<List<Song>> getAll() async {
     await _ensureInitialized();
     final box = Hive.box<Map>(songsBoxName);

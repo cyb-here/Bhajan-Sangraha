@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
 import 'package:flutter/gestures.dart';
 import '../models/song.dart';
-import '../services/local_db.dart';
+// local_db is no longer used directly here; font-size persistence goes through provider
+import 'add_song.dart';
 
 class SongDetailScreen extends ConsumerStatefulWidget {
   final Song song;
@@ -64,36 +65,42 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
     setState(() {
       _fontSize = (_fontSize + 1).clamp(10.0, 48.0);
     });
-    final updated = Song(
-      id: _song.id,
-      title: _song.title,
-      lyrics: _song.lyrics,
-      language: _song.language,
-      category: _song.category,
-      updatedAt: _song.updatedAt,
-      fontSize: _fontSize,
-    );
-    await LocalDb().upsertSong(updated);
-    setState(() => _song = updated);
-    await ref.read(songsProvider.notifier).reloadAll();
+    // persist and push only font size
+    await ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize);
+    setState(() {
+      _song = Song(
+        id: _song.id,
+        title: _song.title,
+        lyrics: _song.lyrics,
+        language: _song.language,
+        category: _song.category,
+        updatedAt: _song.updatedAt,
+        fontSize: _fontSize,
+        favorite: _song.favorite,
+        createdBy: _song.createdBy,
+      );
+    });
   }
 
   Future<void> _zoomOut() async {
     setState(() {
       _fontSize = (_fontSize - 1).clamp(10.0, 48.0);
     });
-    final updated = Song(
-      id: _song.id,
-      title: _song.title,
-      lyrics: _song.lyrics,
-      language: _song.language,
-      category: _song.category,
-      updatedAt: _song.updatedAt,
-      fontSize: _fontSize,
-    );
-    await LocalDb().upsertSong(updated);
-    setState(() => _song = updated);
-    await ref.read(songsProvider.notifier).reloadAll();
+    // persist and push only font size
+    await ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize);
+    setState(() {
+      _song = Song(
+        id: _song.id,
+        title: _song.title,
+        lyrics: _song.lyrics,
+        language: _song.language,
+        category: _song.category,
+        updatedAt: _song.updatedAt,
+        fontSize: _fontSize,
+        favorite: _song.favorite,
+        createdBy: _song.createdBy,
+      );
+    });
   }
 
   void _stopAutoScroll() {
@@ -122,6 +129,7 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
   }
 
   late Song _song;
+  String? _localUserId;
 
   @override
   void initState() {
@@ -129,6 +137,11 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
     // keep a local mutable copy of the song so we can update and persist
     _song = widget.song;
     _fontSize = _song.fontSize ?? _fontSize;
+    // fetch local user id to determine edit permissions
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final id = await ref.read(localDbProvider).getLocalUserId();
+      setState(() => _localUserId = id);
+    });
   }
 
   @override
@@ -137,6 +150,7 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
     final song = _song;
     return Scaffold(
       appBar: AppBar(title: Text(song.title), actions: [
+        // Favorite toggle
         IconButton(
           tooltip: song.favorite ? 'Remove favorite' : 'Add favorite',
           icon: Icon(
@@ -147,7 +161,20 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
             final updated = await ref.read(songsProvider.notifier).toggleFavorite(song.id);
             if (updated != null) setState(() => _song = updated);
           },
-        )
+        ),
+        // Show edit button only if current user is the creator
+        if (_localUserId != null && _localUserId == song.createdBy)
+          IconButton(
+            tooltip: 'Edit',
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              final edited = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddSongScreen(editing: _song)));
+              if (edited is Song) {
+                setState(() => _song = edited);
+                await ref.read(songsProvider.notifier).reloadAll();
+              }
+            },
+          ),
       ]),
       body: RawGestureDetector(
         gestures: <Type, GestureRecognizerFactory>{
@@ -168,19 +195,21 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
               instance.onEnd = (details) {
                 setState(() { _isScaling = false; });
                 // persist font size for this song
-                final updated = Song(
-                  id: _song.id,
-                  title: _song.title,
-                  lyrics: _song.lyrics,
-                  language: _song.language,
-                  category: _song.category,
-                  updatedAt: _song.updatedAt,
-                  fontSize: _fontSize,
-                );
-                LocalDb().upsertSong(updated).then((_) async {
-                  // update local state and reload provider list
-                  setState(() { _song = updated; });
-                  await ref.read(songsProvider.notifier).reloadAll();
+                // persist and push only font size
+                ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize).then((_) async {
+                  setState(() {
+                    _song = Song(
+                      id: _song.id,
+                      title: _song.title,
+                      lyrics: _song.lyrics,
+                      language: _song.language,
+                      category: _song.category,
+                      updatedAt: _song.updatedAt,
+                      fontSize: _fontSize,
+                      favorite: _song.favorite,
+                      createdBy: _song.createdBy,
+                    );
+                  });
                 });
               };
               // Note: ScaleGestureRecognizer starts when appropriate pointer sequence occurs.
@@ -329,4 +358,6 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
       // No FAB: zoom is handled by pinch gestures; autoscroll controls live in bottom bar.
     );
   }
+
+  
 }

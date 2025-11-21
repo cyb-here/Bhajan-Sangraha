@@ -7,6 +7,7 @@ class Song {
   final DateTime updatedAt;
   final bool favorite;
   final double? fontSize;
+  final String? createdBy;
 
   Song({
     required this.id,
@@ -17,6 +18,7 @@ class Song {
     required this.updatedAt,
     this.fontSize,
     this.favorite = false,
+    this.createdBy,
   });
 
   factory Song.fromMap(Map<String, dynamic> map) {
@@ -57,6 +59,8 @@ class Song {
     final favRaw = map['favorite'] ?? map['is_favorite'] ?? map['fav'] ?? false;
     final favorite = favRaw is bool ? favRaw : favRaw.toString().toLowerCase() == 'true';
 
+    final createdBy = (map['createdBy'] ?? map['created_by'] ?? map['creator'])?.toString();
+
     return Song(
       id: id is int ? id : (id as int),
       title: title ?? '',
@@ -66,6 +70,7 @@ class Song {
       updatedAt: updatedAt,
       fontSize: fontSize,
       favorite: favorite,
+      createdBy: createdBy,
     );
   }
 
@@ -79,6 +84,7 @@ class Song {
       'updatedAt': updatedAt.toIso8601String(),
       if (fontSize != null) 'fontSize': fontSize,
       'favorite': favorite,
+      if (createdBy != null) 'createdBy': createdBy,
     };
   }
 }

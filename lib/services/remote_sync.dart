@@ -38,4 +38,9 @@ class RemoteSync implements RemoteSyncBase {
     // Deleting against a static JSON source is not possible from the client.
     throw Exception('Delete not supported for JSON remote sync. Configure Supabase for remote CRUD.');
   }
+
+  @override
+  Future<void> pushFontSize(int id, double fontSize) async {
+    throw Exception('Push font-size not supported for JSON remote sync. Configure Supabase for remote CRUD.');
+  }
 }
