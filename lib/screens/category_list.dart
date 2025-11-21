@@ -61,8 +61,11 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
       syncMessageProvider,
       (previous, next) {
         if (next != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(next)));
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(next),
+              duration: const Duration(milliseconds: 1200),
+            ));
             // Reapply the current category filter (or reload all) so the UI doesn't show the full list
             // after a remote sync overrides provider state.
             if (_selectedCategory == null) {

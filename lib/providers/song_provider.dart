@@ -62,13 +62,17 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     try {
       final sync = ref.read(remoteSyncProvider);
       final applied = await sync.sync();
-      final songs = await ref.read(localDbProvider).getAll();
-      state = AsyncValue.data(songs);
+      // Do not replace the in-memory `state` here — let the UI reapply its
+      // active filter (or call reloadAll) after the sync finishes. Replacing
+      // `state` with the full list causes a brief flash where the UI shows
+      // all songs before category filters are reapplied.
       // surface a short message for UI listeners (manual or startup sync)
       ref.read(syncMessageProvider.notifier).state = 'Sync completed: $applied updates';
       return applied;
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+    } catch (e) {
+      // Keep the provider state intact on error and surface a message so the
+      // UI can choose how to react (we avoid forcing an error state that would
+      // replace visible lists unexpectedly).
       ref.read(syncMessageProvider.notifier).state = 'Sync failed: ${e.toString()}';
       rethrow;
     }
