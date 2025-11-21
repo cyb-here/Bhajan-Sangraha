@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "title": "Aarti",
+    "lyrics": "Ganapati Bappa Morya...",
+    "language": "marathi",
+    "category": "devotional",
+    "imageUrl": "https://username.github.io/lyrics-app-data/images/devotional.png",
+    "updatedAt": "2025-11-20"
+  },
+  {
+    "id": 2,
+    "title": "Love Song",
+    "lyrics": "You are my sunshine...",
+    "language": "english",
+    "category": "romantic",
+    "imageUrl": "https://username.github.io/lyrics-app-data/images/romantic.png",
+    "updatedAt": "2025-11-20"
+  }
+]
