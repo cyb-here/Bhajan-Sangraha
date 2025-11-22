@@ -58,6 +58,20 @@ class LocalDb {
     await box.put(key, newId);
     return newId;
   }
+  
+  Future<List<int>> getSongOrder() async {
+    await _ensureInitialized();
+    final box = Hive.box(settingsBoxName);
+    final v = box.get('songOrder');
+    if (v == null) return [];
+    return List<int>.from(v);
+  }
+  
+  Future<void> saveSongOrder(List<int> ids) async {
+    await _ensureInitialized();
+    final box = Hive.box(settingsBoxName);
+    await box.put('songOrder', ids);
+  }
 
   String _generateLocalUserId() {
     final now = DateTime.now().millisecondsSinceEpoch;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/song.dart';
 
 class AddSongScreen extends ConsumerStatefulWidget {
@@ -49,6 +50,15 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
     final title = _titleCtl.text.trim();
     final lyrics = _lyricsCtl.text.trim();
     final category = _selectedCategory ?? 'uncategorized';
+
+    final user = ref.read(userProvider).value;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please login to add/edit songs')));
+        setState(() => _saving = false);
+      }
+      return;
+    }
 
     try {
       if (widget.editing == null) {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/song.dart';
 import 'song_detail.dart';
 import 'add_song.dart';
+import 'login_screen.dart';
 
 class CategoryListScreen extends ConsumerStatefulWidget {
   const CategoryListScreen({super.key});
@@ -18,6 +20,7 @@ class CategoryListScreen extends ConsumerStatefulWidget {
 
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   String? _selectedCategory;
+  bool _isReordering = false;
 
   @override
   void initState() {
@@ -56,6 +59,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final userAsync = ref.watch(userProvider);
+    final user = userAsync.asData?.value;
 
     // Listen for startup/remote sync messages and show a SnackBar when one appears
     ref.listen<String?>(
@@ -88,20 +93,35 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
       appBar: AppBar(
         title: const Text('Lyrics Categories'),
         actions: [
+          // Reorder button
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () async {
-              // open Add Song screen
-              final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddSongScreen()));
-              if (res != null) {
-                // show brief confirmation
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Song added')));
-                // reload list
-                ref.read(songsProvider.notifier).reloadAll();
-              }
-            },
-            tooltip: 'Add song',
+            icon: Icon(_isReordering ? Icons.check : Icons.sort),
+            onPressed: () => setState(() => _isReordering = !_isReordering),
+            tooltip: _isReordering ? 'Finish reordering' : 'Reorder songs',
           ),
+          if (user == null)
+            IconButton(
+              icon: const Icon(Icons.login),
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+              },
+              tooltip: 'Login',
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () async {
+                // open Add Song screen
+                final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddSongScreen()));
+                if (res != null) {
+                  // show brief confirmation
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Song added')));
+                  // reload list
+                  ref.read(songsProvider.notifier).reloadAll();
+                }
+              },
+              tooltip: 'Add song',
+            ),
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () => ref.read(songsProvider.notifier).refreshFromRemote(),
@@ -182,79 +202,95 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
           // Divider
           Divider(height: 1, color: theme.dividerColor),
 
-          // Songs list (animated when switching categories)
+          // Songs list
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, anim) {
-                // horizontal slide from right with fade
-                final curved = CurvedAnimation(parent: anim, curve: Curves.easeInOut);
-                final offsetAnim = Tween<Offset>(begin: const Offset(0.25, 0), end: Offset.zero).animate(curved);
-                return SlideTransition(position: offsetAnim, child: FadeTransition(opacity: anim, child: child));
-              },
-              child: Container(
-                key: ValueKey<String?>(_selectedCategory ?? 'all'),
-                child: Builder(builder: (context) {
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      await ref.read(songsProvider.notifier).refreshFromRemote();
-                    },
-                    child: songsAsync.when(
-                      loading: () => SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.5,
-                          child: const Center(child: CircularProgressIndicator()),
-                        ),
-                      ),
-                      error: (e, _) => SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.5,
-                          child: Center(child: Text('Error: $e')),
-                        ),
-                      ),
-                      data: (songs) {
-                        if (songs.isEmpty) {
-                          return SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.5,
-                              child: const Center(child: Text('No songs available')),
-                            ),
-                          );
-                        }
-                        return ListView.separated(
-                          itemCount: songs.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (_, i) {
-                            final Song s = songs[i];
-                            return ListTile(
-                              leading: const Icon(Icons.music_note),
+            child: Container(
+              key: ValueKey<String?>(_selectedCategory ?? 'all'),
+              child: Builder(builder: (context) {
+                Widget buildList(List<Song> songs) {
+                   if (songs.isEmpty) {
+                      return const Center(child: Text('No songs available'));
+                    }
+
+                    // Always sort favorites first, preserving relative order for the rest
+                    final displayList = List<Song>.from(songs);
+                    displayList.sort((a, b) {
+                      if (a.favorite && !b.favorite) return -1;
+                      if (!a.favorite && b.favorite) return 1;
+                      return 0; // Keep provider's order (persisted order)
+                    });
+
+                    if (_isReordering) {
+                      return ReorderableListView(
+                        onReorder: (oldIndex, newIndex) {
+                          if (oldIndex < newIndex) newIndex -= 1;
+                          final item = displayList.removeAt(oldIndex);
+                          displayList.insert(newIndex, item);
+                          
+                          // Persist new order
+                          ref.read(songsProvider.notifier).reorderSongs(displayList);
+                        },
+                        children: [
+                          for (final s in displayList)
+                            ListTile(
+                              key: ValueKey(s.id),
+                              leading: const Icon(Icons.drag_handle),
                               title: Text(s.title),
                               subtitle: Text('${s.category} • ${s.language}'),
-                              trailing: IconButton(
-                                tooltip: s.favorite ? 'Remove favorite' : 'Add favorite',
-                                icon: Icon(
-                                  s.favorite ? Icons.favorite : Icons.favorite_border,
-                                  color: s.favorite ? theme.colorScheme.primary : null,
-                                ),
-                                onPressed: () async {
-                                  await ref.read(songsProvider.notifier).toggleFavorite(s.id);
-                                },
-                              ),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => SongDetailScreen(song: s)),
-                              ),
-                            );
-                          },
+                            ),
+                        ],
+                      );
+                    }
+
+                    return ListView.separated(
+                      itemCount: displayList.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final Song s = displayList[i];
+                        return ListTile(
+                          leading: const Icon(Icons.music_note),
+                          title: Text(s.title),
+                          subtitle: Text('${s.category} • ${s.language}'),
+                          trailing: IconButton(
+                            tooltip: s.favorite ? 'Remove favorite' : 'Add favorite',
+                            icon: Icon(
+                              s.favorite ? Icons.favorite : Icons.favorite_border,
+                              color: s.favorite ? theme.colorScheme.primary : null,
+                            ),
+                            onPressed: () async {
+                              await ref.read(songsProvider.notifier).toggleFavorite(s.id);
+                            },
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => SongDetailScreen(song: s)),
+                          ),
                         );
                       },
-                    ),
-                  );
-                }),
-              ),
+                    );
+                }
+
+                // If reordering, show just the list (no pull-to-refresh)
+                if (_isReordering) {
+                   return songsAsync.when(
+                     loading: () => const Center(child: CircularProgressIndicator()),
+                     error: (e, _) => Center(child: Text('Error: $e')),
+                     data: buildList,
+                   );
+                }
+
+                // Normal mode: wrap in RefreshIndicator
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await ref.read(songsProvider.notifier).refreshFromRemote();
+                  },
+                  child: songsAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                    data: buildList,
+                  ),
+                );
+              }),
             ),
           ),
         ],

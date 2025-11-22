@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
 import 'package:flutter/gestures.dart';
 import '../models/song.dart';
-// local_db is no longer used directly here; font-size persistence goes through provider
 import 'add_song.dart';
 
 class SongDetailScreen extends ConsumerStatefulWidget {
@@ -23,8 +22,6 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
   bool _isAutoScrolling = false;
   bool _isScaling = false;
   int _scrollStep = 2; // pixels per auto-scroll tick (1..10)
-
-  // Pinch-to-zoom adjusts `_fontSize`; explicit UI controls removed.
 
   void _startAutoScroll() {
     if (_isAutoScrolling) return;
@@ -65,29 +62,19 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
     setState(() {
       _fontSize = (_fontSize + 1).clamp(10.0, 48.0);
     });
-    // persist and push only font size
-    await ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize);
-    setState(() {
-      _song = Song(
-        id: _song.id,
-        title: _song.title,
-        lyrics: _song.lyrics,
-        language: _song.language,
-        category: _song.category,
-        updatedAt: _song.updatedAt,
-        fontSize: _fontSize,
-        favorite: _song.favorite,
-        createdBy: _song.createdBy,
-      );
-    });
+    _persistFontSize();
   }
 
   Future<void> _zoomOut() async {
     setState(() {
       _fontSize = (_fontSize - 1).clamp(10.0, 48.0);
     });
-    // persist and push only font size
-    await ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize);
+    _persistFontSize();
+  }
+
+  // Immediate persistence (local DB + Provider state), no remote push
+  void _persistFontSize() {
+    // 1. Update local state wrapper immediately for UI
     setState(() {
       _song = Song(
         id: _song.id,
@@ -101,6 +88,9 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
         createdBy: _song.createdBy,
       );
     });
+
+    // 2. Update Provider/Hive immediately (no debounce needed as it's local only now)
+    ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize);
   }
 
   void _stopAutoScroll() {
@@ -118,8 +108,6 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoScroll());
     }
   }
-
-  
 
   @override
   void dispose() {
@@ -194,25 +182,8 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
               };
               instance.onEnd = (details) {
                 setState(() { _isScaling = false; });
-                // persist font size for this song
-                // persist and push only font size
-                ref.read(songsProvider.notifier).updateFontSize(_song.id, _fontSize).then((_) async {
-                  setState(() {
-                    _song = Song(
-                      id: _song.id,
-                      title: _song.title,
-                      lyrics: _song.lyrics,
-                      language: _song.language,
-                      category: _song.category,
-                      updatedAt: _song.updatedAt,
-                      fontSize: _fontSize,
-                      favorite: _song.favorite,
-                      createdBy: _song.createdBy,
-                    );
-                  });
-                });
+                _persistFontSize();
               };
-              // Note: ScaleGestureRecognizer starts when appropriate pointer sequence occurs.
             },
           ),
         },
@@ -358,6 +329,4 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
       // No FAB: zoom is handled by pinch gestures; autoscroll controls live in bottom bar.
     );
   }
-
-  
 }

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
 import '../models/song.dart';
 import '../services/local_db.dart';
-import '../services/remote_sync.dart';
 import '../services/remote_sync_base.dart';
 import '../services/remote_sync_supabase.dart';
 import '../config.dart';
@@ -10,18 +10,15 @@ import '../config.dart';
 /// Provider for the local Hive database service
 final localDbProvider = Provider<LocalDb>((ref) => LocalDb());
 
-/// Provider for the remote updates URL (GitHub Pages JSON)
-final updatesUrlProvider = Provider<String>((ref) =>
-    'https://cyb-here.github.io/Lyrics-App-Data/update.json'); // replace with your actual URL
-
 /// Provider for the remote sync service
 final remoteSyncProvider = Provider<RemoteSyncBase>((ref) {
-  // If Supabase config is provided, use Supabase-backed sync; otherwise fall back to JSON remote.
-  if (SUPABASE_URL.isNotEmpty && SUPABASE_ANON_KEY.isNotEmpty) {
-    final db = ref.read(localDbProvider);
-    return RemoteSyncSupabase(localDb: db, supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY);
+  // Enforce Supabase configuration
+  if (SUPABASE_URL.isEmpty || SUPABASE_ANON_KEY.isEmpty) {
+    throw Exception('Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in config.dart');
   }
-  return RemoteSync(localDb: ref.read(localDbProvider), updatesUrl: ref.read(updatesUrlProvider));
+  
+  final db = ref.read(localDbProvider);
+  return RemoteSyncSupabase(localDb: db, supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY);
 });
 
 /// StateNotifierProvider that manages the list of songs
@@ -49,7 +46,13 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     await db.init();
     await db.seedFromAssetsIfEmpty();
     final songs = await db.getAll();
-    state = AsyncValue.data(songs);
+    
+    // Apply saved order if exists
+    final savedOrder = await db.getSongOrder();
+    final sortedSongs = _applySavedOrder(songs, savedOrder);
+    
+    state = AsyncValue.data(sortedSongs);
+    
     // attempt a remote sync on app startup (refreshFromRemote will surface messages)
     try {
       await refreshFromRemote();
@@ -57,34 +60,64 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       // message already set by refreshFromRemote
     }
   }
+  
+  List<Song> _applySavedOrder(List<Song> songs, List<int> order) {
+    if (order.isEmpty) return songs;
+    
+    final Map<int, Song> map = {for (var s in songs) s.id: s};
+    final List<Song> ordered = [];
+    
+    // Add songs in the saved order
+    for (final id in order) {
+      if (map.containsKey(id)) {
+        ordered.add(map[id]!);
+        map.remove(id);
+      }
+    }
+    
+    // Append any remaining songs (new ones or missed ones)
+    ordered.addAll(map.values);
+    
+    return ordered;
+  }
 
   /// Public wrapper to reload all songs from Hive
   Future<void> reloadAll() async {
-    final songs = await ref.read(localDbProvider).getAll();
-    state = AsyncValue.data(songs);
+    final db = ref.read(localDbProvider);
+    final songs = await db.getAll();
+    final savedOrder = await db.getSongOrder();
+    final sortedSongs = _applySavedOrder(songs, savedOrder);
+    state = AsyncValue.data(sortedSongs);
   }
 
-  /// Refresh songs from remote JSON (GitHub Pages)
-  /// Refresh songs from remote JSON (GitHub Pages)
+  Future<void> reorderSongs(List<Song> newOrder) async {
+     state = AsyncValue.data(newOrder);
+     final ids = newOrder.map((s) => s.id).toList();
+     await ref.read(localDbProvider).saveSongOrder(ids);
+  }
+
+  /// Refresh songs from remote Supabase
   /// Returns the number of applied updates.
   Future<int> refreshFromRemote() async {
     try {
       final sync = ref.read(remoteSyncProvider);
       final applied = await sync.sync();
-      // Do not replace the in-memory `state` here — let the UI reapply its
-      // active filter (or call reloadAll) after the sync finishes. Replacing
-      // `state` with the full list causes a brief flash where the UI shows
-      // all songs before category filters are reapplied.
+      
+      // DO NOT call reloadAll() here.
+      // reloadAll() fetches all songs and resets the state to "All Songs".
+      // If the user is on a specific category, this causes a momentary flash of the full list.
+      // Instead, we rely on 'syncMessageProvider' update below. 
+      // The UI (CategoryListScreen) listens to this message and triggers the appropriate reload
+      // (either reloadAll or filterByCategory) based on the active tab.
+
       // surface a short message for UI listeners (manual or startup sync)
-      final source = sync is RemoteSyncSupabase ? 'Supabase' : 'Remote';
-      ref.read(syncMessageProvider.notifier).state = '$source sync completed: $applied updates';
+      ref.read(syncMessageProvider.notifier).state = 'Supabase sync completed: $applied updates';
       return applied;
     } catch (e) {
       // Keep the provider state intact on error and surface a message so the
       // UI can choose how to react (we avoid forcing an error state that would
       // replace visible lists unexpectedly).
-      final source = (ref.read(remoteSyncProvider) is RemoteSyncSupabase) ? 'Supabase' : 'Remote';
-      ref.read(syncMessageProvider.notifier).state = '$source sync failed: ${e.toString()}';
+      ref.read(syncMessageProvider.notifier).state = 'Supabase sync failed: ${e.toString()}';
       rethrow;
     }
   }
@@ -102,7 +135,15 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
   Future<void> filterByCategory(String category) async {
     final all = await ref.read(localDbProvider).getAll();
     final results = all.where((s) => s.category == category).toList();
-    state = AsyncValue.data(results);
+    
+    // Apply order if possible, though typically filtering by category breaks the global order
+    // If we want to support ordering within categories, we'd need a per-category order storage.
+    // For now, we just apply the global order to the filtered subset.
+    final db = ref.read(localDbProvider);
+    final savedOrder = await db.getSongOrder();
+    final sortedResults = _applySavedOrder(results, savedOrder);
+    
+    state = AsyncValue.data(sortedResults);
   }
 
   /// Toggle favorite state for a song and return the updated Song
@@ -119,26 +160,51 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       lyrics: s.lyrics,
       language: s.language,
       category: s.category,
-      updatedAt: s.updatedAt,
+      updatedAt: DateTime.now(), // Update time for sorting
       fontSize: s.fontSize,
       favorite: newVal,
       createdBy: s.createdBy,
     );
     await db.upsertSong(updated);
-    // Update the current in-memory state to avoid clearing any active category filter
-    final current = state;
-    if (current is AsyncData<List<Song>>) {
-      final list = current.value;
-      final newList = list.map((x) => x.id == id ? updated : x).toList();
-      state = AsyncValue.data(newList);
-    } else {
-      // fallback: reload everything from DB
-      await reloadAll();
+    
+    // Push favorite status to remote Supabase
+    final remote = ref.read(remoteSyncProvider);
+    try {
+        await remote.pushSong(updated.toMap());
+    } catch (e) {
+        ref.read(syncMessageProvider.notifier).state = 'Favorite sync failed: ${e.toString()}';
     }
+
+    // Update state and if becoming favorite, move to top of list (persisted order)
+    if (state is AsyncData<List<Song>>) {
+        var currentList = (state as AsyncData<List<Song>>).value;
+        
+        // 1. Update the song object in the list
+        currentList = currentList.map((x) => x.id == id ? updated : x).toList();
+        
+        // 2. If favorited, move to top
+        if (newVal) {
+            final index = currentList.indexWhere((x) => x.id == id);
+            if (index != -1) {
+                final item = currentList.removeAt(index);
+                currentList.insert(0, item);
+                
+                // Save this new order to local DB
+                final ids = currentList.map((x) => x.id).toList();
+                await db.saveSongOrder(ids);
+            }
+        }
+        
+        state = AsyncValue.data(currentList);
+    } else {
+        // Fallback if state isn't ready
+        await reloadAll();
+    }
+    
     return updated;
   }
 
-  /// Update only the font size for a song (local + remote push of font_size)
+  /// Update only the font size for a song (LOCAL only)
   Future<void> updateFontSize(int id, double fontSize) async {
     final db = ref.read(localDbProvider);
     final all = await db.getAll();
@@ -168,13 +234,8 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       state = AsyncValue.data(list);
     }
 
-    // push font size to remote (best-effort)
-    final remote = ref.read(remoteSyncProvider);
-    try {
-      await remote.pushFontSize(id, fontSize);
-    } catch (e) {
-      ref.read(syncMessageProvider.notifier).state = 'Font-size push failed: ${e.toString()}';
-    }
+    // We are NO LONGER pushing font size to remote to avoid schema errors and extra API calls.
+    // Font size preference remains local to the device.
   }
 
   /// Create a new song (local + remote). Generates an id as max existing id + 1.
@@ -185,7 +246,11 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     bool favorite = false,
   }) async {
     final db = ref.read(localDbProvider);
-    final localUserId = await db.getLocalUserId();
+    // Get current authenticated user ID from Supabase instead of local placeholder
+    final user = Supabase.instance.client.auth.currentUser;
+    // Fallback to local ID if somehow not logged in (though UI prevents this)
+    final userId = user?.id ?? await db.getLocalUserId();
+    
     final all = await db.getAll();
     final maxId = all.isEmpty ? 0 : (all.map((s) => s.id).reduce((a, b) => a > b ? a : b));
     final id = maxId + 1;
@@ -199,7 +264,7 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       updatedAt: now,
       fontSize: null,
       favorite: favorite,
-      createdBy: localUserId,
+      createdBy: userId,
     );
 
     // push to remote then persist locally

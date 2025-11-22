@@ -1,16 +1,11 @@
-// Supabase SDK not required for REST-based sync in this project.
-// Keeping lightweight helpers so code that calls `initSupabase()`
-// won't fail if Supabase isn't configured.
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config.dart';
 
 Future<void> initSupabase() async {
-  // No-op: REST-based sync is used. If you later want the SDK,
-  // add `supabase_flutter` to `pubspec.yaml` again and restore
-  // the original implementation.
-  return;
+  await Supabase.initialize(
+    url: SUPABASE_URL,
+    anonKey: SUPABASE_ANON_KEY,
+  );
 }
 
-// `getSupabaseClient()` intentionally left unimplemented to avoid
-// introducing the SDK dependency. If you need the client, re-add
-// `supabase_flutter` and implement this helper.
-Never getSupabaseClient() => throw UnsupportedError(
-    'Supabase SDK not enabled. Add supabase_flutter to pubspec.yaml.');
+SupabaseClient getSupabaseClient() => Supabase.instance.client;

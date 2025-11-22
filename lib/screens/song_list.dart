@@ -16,6 +16,7 @@ class SongListScreen extends ConsumerStatefulWidget {
 class _SongListScreenState extends ConsumerState<SongListScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
+  bool _isReordering = false;
 
   /// Reload Hive data every time this screen becomes active
   @override
@@ -56,6 +57,17 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.category != null ? 'Category: ${widget.category}' : 'All Songs'),
+        actions: [
+          IconButton(
+            icon: Icon(_isReordering ? Icons.done : Icons.sort),
+            tooltip: _isReordering ? 'Finish reordering' : 'Reorder songs',
+            onPressed: () {
+              setState(() {
+                _isReordering = !_isReordering;
+              });
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -73,37 +85,77 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
             child: songsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
-              data: (songs) => ListView.separated(
-                itemCount: songs.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (_, i) {
-                  final Song s = songs[i];
-                  return ListTile(
-                    leading: const Icon(Icons.music_note),
-                    title: Text(s.title),
-                    subtitle: Text('${s.category} • ${s.language}'),
-                    trailing: IconButton(
-                      tooltip: s.favorite ? 'Remove favorite' : 'Add favorite',
-                      icon: Icon(
-                        s.favorite ? Icons.favorite : Icons.favorite_border,
-                        color: s.favorite ? Theme.of(context).colorScheme.primary : null,
-                      ),
-                      onPressed: () async {
-                        await ref.read(songsProvider.notifier).toggleFavorite(s.id);
-                      },
-                    ),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => SongDetailScreen(song: s)),
-                    ),
+              data: (songs) {
+                if (songs.isEmpty) {
+                   return const Center(child: Text('No songs found'));
+                }
+                
+                // In reorder mode, we work with the list as provided by the provider (which handles sorting internally if we persist order)
+                // For now, we assume the provider returns them in the desired display order.
+                // However, since we have complex sorting logic (favorites first), reordering might be tricky if we don't persist it properly.
+                // For this implementation, we'll assume the user wants to manually order the list and we save that order.
+                // BUT: The current provider logic sorts by ID/Favorite dynamically.
+                // To support custom order, we need the provider to sort by a persisted index.
+                
+                final currentList = List<Song>.from(songs);
+                
+                if (_isReordering) {
+                  return ReorderableListView(
+                    onReorder: (oldIndex, newIndex) {
+                       if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+                      final item = currentList.removeAt(oldIndex);
+                      currentList.insert(newIndex, item);
+                      
+                      // Update state immediately to reflect changes in UI
+                      // In a real app, we'd update the provider's state here.
+                      // But since we need to persist this, we should call a method on the notifier.
+                      ref.read(songsProvider.notifier).reorderSongs(currentList);
+                    },
+                    children: [
+                      for (final s in currentList)
+                        ListTile(
+                          key: ValueKey(s.id),
+                          leading: const Icon(Icons.drag_handle),
+                          title: Text(s.title),
+                          subtitle: Text('${s.category} • ${s.language}'),
+                        ),
+                    ],
                   );
-                },
-              ),
+                }
+
+                return ListView.separated(
+                  itemCount: currentList.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final Song s = currentList[i];
+                    return ListTile(
+                      leading: const Icon(Icons.music_note),
+                      title: Text(s.title),
+                      subtitle: Text('${s.category} • ${s.language}'),
+                      trailing: IconButton(
+                        tooltip: s.favorite ? 'Remove favorite' : 'Add favorite',
+                        icon: Icon(
+                          s.favorite ? Icons.favorite : Icons.favorite_border,
+                          color: s.favorite ? Theme.of(context).colorScheme.primary : null,
+                        ),
+                        onPressed: () async {
+                          await ref.read(songsProvider.notifier).toggleFavorite(s.id);
+                        },
+                      ),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => SongDetailScreen(song: s)),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
       ),
-      // Sync button intentionally shown on categories page only.
     );
   }
 }
