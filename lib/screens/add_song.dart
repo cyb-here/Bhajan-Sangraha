@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/song.dart';
+import 'login_screen.dart';
 
 class AddSongScreen extends ConsumerStatefulWidget {
   final Song? editing;
@@ -35,6 +36,14 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
       _favorite = e.favorite;
       if (e.category.isNotEmpty) _selectedCategory = e.category;
     }
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       final user = ref.read(userProvider).value;
+       if (user == null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You must be logged in to add or edit songs.')));
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+       }
+    });
   }
 
   @override
@@ -55,6 +64,7 @@ class _AddSongScreenState extends ConsumerState<AddSongScreen> {
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please login to add/edit songs')));
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
         setState(() => _saving = false);
       }
       return;

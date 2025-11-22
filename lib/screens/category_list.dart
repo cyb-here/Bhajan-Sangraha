@@ -99,18 +99,12 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
             onPressed: () => setState(() => _isReordering = !_isReordering),
             tooltip: _isReordering ? 'Finish reordering' : 'Reorder songs',
           ),
-          if (user == null)
-            IconButton(
-              icon: const Icon(Icons.login),
-              onPressed: () {
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              if (user == null) {
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
-              },
-              tooltip: 'Login',
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () async {
+              } else {
                 // open Add Song screen
                 final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddSongScreen()));
                 if (res != null) {
@@ -119,9 +113,10 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
                   // reload list
                   ref.read(songsProvider.notifier).reloadAll();
                 }
-              },
-              tooltip: 'Add song',
-            ),
+              }
+            },
+            tooltip: 'Add song',
+          ),
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () => ref.read(songsProvider.notifier).refreshFromRemote(),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/song_provider.dart';
+import '../providers/auth_provider.dart';
 import 'package:flutter/gestures.dart';
 import '../models/song.dart';
 import 'add_song.dart';
@@ -136,6 +137,9 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final song = _song;
+    final userAsync = ref.watch(userProvider);
+    final user = userAsync.asData?.value;
+    
     return Scaffold(
       appBar: AppBar(title: Text(song.title), actions: [
         // Favorite toggle
@@ -150,8 +154,8 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
             if (updated != null) setState(() => _song = updated);
           },
         ),
-        // Show edit button only if current user is the creator
-        if (_localUserId != null && _localUserId == song.createdBy)
+        // Show edit button only if current user is the creator OR logged in
+        if (user != null && _localUserId != null && _localUserId == song.createdBy)
           IconButton(
             tooltip: 'Edit',
             icon: const Icon(Icons.edit),
