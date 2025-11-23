@@ -47,6 +47,30 @@ class LocalDb {
     return v.toString();
   }
 
+  /// Persist the last successful remote sync time (UTC ISO string) in settings.
+  Future<void> setLastSynced(DateTime? when) async {
+    await _ensureInitialized();
+    final box = Hive.box(settingsBoxName);
+    if (when == null) {
+      await box.delete('lastSynced');
+    } else {
+      await box.put('lastSynced', when.toUtc().toIso8601String());
+    }
+  }
+
+  /// Read the last successful remote sync time from settings.
+  Future<DateTime?> getLastSynced() async {
+    await _ensureInitialized();
+    final box = Hive.box(settingsBoxName);
+    final v = box.get('lastSynced');
+    if (v == null) return null;
+    try {
+      return DateTime.parse(v.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns a stable local user id stored in settings. If absent, generates and stores one.
   Future<String> getLocalUserId() async {
     await _ensureInitialized();

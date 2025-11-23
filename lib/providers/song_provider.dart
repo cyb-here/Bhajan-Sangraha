@@ -30,6 +30,12 @@ final songsProvider =
 /// Provider to surface short sync status messages to the UI (snackbars)
 final syncMessageProvider = StateProvider<String?>((ref) => null);
 
+/// Provider for sync status: 'idle', 'syncing', 'failed'
+final syncStatusProvider = StateProvider<String>((ref) => 'idle');
+
+/// Provider that stores last successful sync time.
+final lastSyncedProvider = StateProvider<DateTime?>((ref) => null);
+
 /// Provider for the app's ThemeMode (light/dark)
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
@@ -54,6 +60,12 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     state = AsyncValue.data(sortedSongs);
     
     // attempt a remote sync on app startup (refreshFromRemote will surface messages)
+    // Hydrate lastSynced provider from persisted settings so UI can show accurate info
+    try {
+      final persisted = await db.getLastSynced();
+      ref.read(lastSyncedProvider.notifier).state = persisted;
+    } catch (_) {}
+
     try {
       await refreshFromRemote();
     } catch (_) {
@@ -99,16 +111,22 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
   /// Refresh songs from remote Supabase
   /// Returns the number of applied updates.
   Future<int> refreshFromRemote() async {
+    // Update sync status so UI can show spinner / failure state
+    ref.read(syncStatusProvider.notifier).state = 'syncing';
     try {
       final sync = ref.read(remoteSyncProvider);
       final applied = await sync.sync();
-      
-      // DO NOT call reloadAll() here.
-      // reloadAll() fetches all songs and resets the state to "All Songs".
-      // If the user is on a specific category, this causes a momentary flash of the full list.
-      // Instead, we rely on 'syncMessageProvider' update below. 
-      // The UI (CategoryListScreen) listens to this message and triggers the appropriate reload
-      // (either reloadAll or filterByCategory) based on the active tab.
+
+      // mark success
+      ref.read(syncStatusProvider.notifier).state = 'idle';
+      final nowUtc = DateTime.now().toUtc();
+      ref.read(lastSyncedProvider.notifier).state = nowUtc;
+      // Persist last synced timestamp to local settings so it survives restarts
+      try {
+        await ref.read(localDbProvider).setLastSynced(nowUtc);
+      } catch (_) {
+        // ignore persistence errors
+      }
 
       // surface a short message for UI listeners (manual or startup sync)
       ref.read(syncMessageProvider.notifier).state = 'Supabase sync completed: $applied updates';
@@ -117,6 +135,7 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
       // Keep the provider state intact on error and surface a message so the
       // UI can choose how to react (we avoid forcing an error state that would
       // replace visible lists unexpectedly).
+      ref.read(syncStatusProvider.notifier).state = 'failed';
       ref.read(syncMessageProvider.notifier).state = 'Supabase sync failed: ${e.toString()}';
       rethrow;
     }
@@ -144,6 +163,14 @@ class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
     final sortedResults = _applySavedOrder(results, savedOrder);
     
     state = AsyncValue.data(sortedResults);
+  }
+
+  /// Show only favorite songs from local DB
+  Future<void> filterFavorites() async {
+    final db = ref.read(localDbProvider);
+    final all = await db.getAll();
+    final results = all.where((s) => s.favorite).toList();
+    state = AsyncValue.data(results);
   }
 
   /// Toggle favorite state for a song and return the updated Song
