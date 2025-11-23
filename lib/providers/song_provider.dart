@@ -36,8 +36,14 @@ final syncStatusProvider = StateProvider<String>((ref) => 'idle');
 /// Provider that stores last successful sync time.
 final lastSyncedProvider = StateProvider<DateTime?>((ref) => null);
 
-/// Provider for the app's ThemeMode (light/dark)
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
+/// App theme options (adds a third dark-gray theme)
+enum AppThemeOption { light, dark, darkGray }
+
+/// Provider for the app's theme option (cycles between light, dark, darkGray)
+final themeOptionProvider = StateProvider<AppThemeOption>((ref) => AppThemeOption.light);
+
+/// Accent color provider (seed color for ThemeData). Default is green used previously.
+final accentColorProvider = StateProvider<Color>((ref) => const Color(0xFF4CAF50));
 
 class SongsNotifier extends StateNotifier<AsyncValue<List<Song>>> {
   final Ref ref;

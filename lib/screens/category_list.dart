@@ -4,6 +4,7 @@ import '../providers/song_provider.dart';
 import '../providers/connectivity_provider.dart';
 import '../providers/auth_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../models/song.dart';
 import 'song_detail.dart';
 import 'add_song.dart';
@@ -21,10 +22,13 @@ class CategoryListScreen extends ConsumerStatefulWidget {
   ConsumerState<CategoryListScreen> createState() => _CategoryListScreenState();
 }
 
+enum CategoryStyle { tabBar, pillChips, segmented }
+
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   String? _selectedCategory;
   bool _isReordering = false;
   bool _showFavorites = false;
+  CategoryStyle _categoryStyle = CategoryStyle.pillChips;
   final ScrollController _listController = ScrollController();
   final Map<int, GlobalKey> _itemKeys = {};
   int? _highlightedSongId;
@@ -189,8 +193,6 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
             onPressed: () async {
               if (user == null) {
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
-              } else {
-                // open Add Song screen
                 final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddSongScreen()));
                 if (res != null) {
                   // show brief confirmation
@@ -202,22 +204,134 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
             },
             tooltip: 'Add song',
           ),
+          // Style selector button
+          IconButton(
+            icon: const Icon(Icons.view_week),
+            tooltip: 'Category style',
+            onPressed: () async {
+              final sel = await showDialog<CategoryStyle>(
+                context: context,
+                builder: (_) => SimpleDialog(
+                  title: const Text('Category style'),
+                  children: [
+                    SimpleDialogOption(
+                      onPressed: () => Navigator.pop(context, CategoryStyle.tabBar),
+                      child: const Text('A — Bottom TabBar (scrollable)'),
+                    ),
+                    SimpleDialogOption(
+                      onPressed: () => Navigator.pop(context, CategoryStyle.pillChips),
+                      child: const Text('B — Compact Pill Chips'),
+                    ),
+                    SimpleDialogOption(
+                      onPressed: () => Navigator.pop(context, CategoryStyle.segmented),
+                      child: const Text('C — Segmented control'),
+                    ),
+                  ],
+                ),
+              );
+              if (sel != null) setState(() => _categoryStyle = sel);
+            },
+          ),
+
           // Sync moved into overflow menu
           // Overflow menu to keep AppBar tidy
           PopupMenuButton<String>(
+            // Use app theme surface so the popup matches selected theme/accent
+            color: theme.colorScheme.surface,
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
             onSelected: (v) async {
               if (v == 'toggle_favs') { await _toggleFavorites(); return; }
               if (v == 'toggle_theme') {
-                final cur = ref.read(themeModeProvider.notifier).state;
-                final next = cur == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-                ref.read(themeModeProvider.notifier).state = next;
+                // Cycle through three theme options: light -> dark -> darkGray -> light
+                final cur = ref.read(themeOptionProvider.notifier).state;
+                final next = cur == AppThemeOption.light
+                    ? AppThemeOption.dark
+                    : cur == AppThemeOption.dark
+                        ? AppThemeOption.darkGray
+                        : AppThemeOption.light;
+                ref.read(themeOptionProvider.notifier).state = next;
+                return;
+              }
+
+              // accent color choices
+              if (v == 'accent_custom') {
+                // show color picker dialog
+                Color pickerColor = ref.read(accentColorProvider);
+                await showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Pick accent color'),
+                    content: SingleChildScrollView(
+                      child: ColorPicker(
+                        pickerColor: pickerColor,
+                        onColorChanged: (col) => pickerColor = col,
+                        showLabel: false,
+                        pickerAreaHeightPercent: 0.8,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () {
+                          ref.read(accentColorProvider.notifier).state = pickerColor;
+                          Navigator.of(ctx).pop();
+                        },
+                        child: const Text('Select'),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+
+              if (v.startsWith('accent_')) {
+                final key = v.split('_').last;
+                Color c;
+                switch (key) {
+                  case 'blue':
+                    c = const Color(0xFF2196F3);
+                    break;
+                  case 'orange':
+                    c = const Color(0xFFFF9800);
+                    break;
+                  case 'purple':
+                    c = const Color(0xFF9C27B0);
+                    break;
+                  case 'red':
+                    c = const Color(0xFFF44336);
+                    break;
+                  case 'teal':
+                    c = const Color(0xFF009688);
+                    break;
+                  case 'green':
+                  default:
+                    c = const Color(0xFF4CAF50);
+                }
+                ref.read(accentColorProvider.notifier).state = c;
                 return;
               }
             },
             itemBuilder: (ctx) => [
               PopupMenuItem(value: 'sync', child: Row(children: [const Icon(Icons.sync), const SizedBox(width: 8), const Text('Sync updates')])),
               PopupMenuItem(value: 'toggle_favs', child: Row(children: [Icon(_showFavorites ? Icons.favorite : Icons.favorite_border), const SizedBox(width: 8), Text(_showFavorites ? 'Show all' : 'Show favorites')])),
-              PopupMenuItem(value: 'toggle_theme', child: Row(children: [Icon(ref.watch(themeModeProvider) == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode), const SizedBox(width: 8), const Text('Toggle theme')])),
+              PopupMenuItem(
+                value: 'toggle_theme',
+                child: Row(children: [
+                  Icon(ref.watch(themeOptionProvider) == AppThemeOption.light ? Icons.light_mode : Icons.dark_mode),
+                  const SizedBox(width: 8),
+                  const Text('Toggle theme')
+                ]),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(enabled: false, child: Text('Accent color')),
+              PopupMenuItem(value: 'accent_green', child: Row(children: [const Icon(Icons.circle, color: Color(0xFF4CAF50)), const SizedBox(width: 8), const Text('Green')])),
+              PopupMenuItem(value: 'accent_blue', child: Row(children: [const Icon(Icons.circle, color: Color(0xFF2196F3)), const SizedBox(width: 8), const Text('Blue')])),
+              PopupMenuItem(value: 'accent_orange', child: Row(children: [const Icon(Icons.circle, color: Color(0xFFFF9800)), const SizedBox(width: 8), const Text('Orange')])),
+              PopupMenuItem(value: 'accent_purple', child: Row(children: [const Icon(Icons.circle, color: Color(0xFF9C27B0)), const SizedBox(width: 8), const Text('Purple')])),
+              PopupMenuItem(value: 'accent_red', child: Row(children: [const Icon(Icons.circle, color: Color(0xFFF44336)), const SizedBox(width: 8), const Text('Red')])),
+              PopupMenuItem(value: 'accent_teal', child: Row(children: [const Icon(Icons.circle, color: Color(0xFF009688)), const SizedBox(width: 8), const Text('Teal')])),
+              PopupMenuItem(value: 'accent_custom', child: Row(children: [const Icon(Icons.color_lens), const SizedBox(width: 8), const Text('Custom...')])),
             ],
           ),
         ],
@@ -229,74 +343,20 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
       ),
       body: Column(
         children: [
-          // Top category strip
-          SizedBox(
-            height: 96,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6.0),
-                    child: ChoiceChip(
-                      label: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Text('All', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      ),
-                      selected: _selectedCategory == null,
-                      onSelected: (_) => _selectCategory(null),
-                      selectedColor: isDark
-                          ? theme.colorScheme.primary.withOpacity(0.30)
-                          : theme.colorScheme.primary.withOpacity(0.14),
-                      side: _selectedCategory == null
-                          ? BorderSide(color: theme.colorScheme.primary.withOpacity(0.22))
-                          : BorderSide.none,
-                      labelStyle: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _selectedCategory == null ? theme.colorScheme.onPrimary : null,
-                      ),
-                    ),
-                  ),
-                  for (final cat in CategoryListScreen.categories)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6.0),
-                      child: ChoiceChip(
-                        label: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          child: Text(cat.toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                        ),
-                        selected: _selectedCategory == cat,
-                        onSelected: (_) => _selectCategory(cat),
-                        selectedColor: isDark
-                            ? theme.colorScheme.primary.withOpacity(0.30)
-                            : theme.colorScheme.primary.withOpacity(0.14),
-                        side: _selectedCategory == cat
-                            ? BorderSide(color: theme.colorScheme.primary.withOpacity(0.26))
-                            : BorderSide.none,
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _selectedCategory == cat ? theme.colorScheme.onPrimary : null,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
+          // Category strip rendered at bottom (moved back)
 
           // Sync status row (shows syncing/failed/last-synced) + reorder toggle
           Builder(builder: (context) {
             final status = ref.watch(syncStatusProvider);
             final last = ref.watch(lastSyncedProvider);
 
-            // Build a left-aligned sync/last-synced widget and move reorder to the right
-            final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12);
-            Widget leftContent;
+            // Refined layout: labeled reorder button on the left, sync/last-synced on the right
+            final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.85));
+
+            // Build right-aligned status content (muted)
+            Widget rightContent;
             if (status == 'syncing') {
-              leftContent = Row(
+              rightContent = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
                   SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2.0)),
@@ -305,22 +365,22 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
                 ],
               );
             } else if (status == 'failed') {
-              leftContent = Row(
+              rightContent = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.error, color: Colors.red, size: 16),
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: () => ref.read(songsProvider.notifier).refreshFromRemote(),
-                    child: const Text('Retry sync', style: TextStyle(fontSize: 12)),
+                    child: const Text('Retry', style: TextStyle(fontSize: 12)),
                   ),
                 ],
               );
             } else if (last != null) {
               final text = DateFormat('yyyy-MM-dd HH:mm').format(last);
-              leftContent = Text('Last synced: $text', style: textStyle?.copyWith(color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8)));
+              rightContent = Text('Last synced: $text', style: textStyle);
             } else {
-              leftContent = const SizedBox.shrink();
+              rightContent = const SizedBox.shrink();
             }
 
             return Container(
@@ -329,21 +389,27 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 children: [
-                  // Left: last-synced or status
-                  Expanded(child: Align(alignment: Alignment.centerLeft, child: leftContent)),
-
-                  // Right: Reorder toggle button (now aligned right for better discoverability)
-                  IconButton(
-                    icon: Icon(_isReordering ? Icons.check : Icons.drag_handle),
-                    tooltip: _isReordering ? 'Done rearranging' : 'Rearrange list',
+                  // Left: labeled reorder control for discoverability
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    icon: Icon(_isReordering ? Icons.check : Icons.drag_handle, size: 16),
+                    label: Text(_isReordering ? 'Done' : 'Rearrange', style: const TextStyle(fontSize: 13)),
                     onPressed: () {
                       setState(() => _isReordering = !_isReordering);
-                      // if leaving reorder mode, reload to ensure stable order in provider
                       if (!_isReordering) {
                         ref.read(songsProvider.notifier).reloadAll();
                       }
                     },
                   ),
+
+                  // Spacer
+                  const SizedBox(width: 8),
+
+                  // Right-aligned status
+                  Expanded(child: Align(alignment: Alignment.centerRight, child: rightContent)),
                 ],
               ),
             );
@@ -468,7 +534,129 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
           ),
         ],
       ),
+      // category bar will be rendered in bottomNavigationBar
+      bottomNavigationBar: SafeArea(child: _buildCategoryBar(context, theme, theme.brightness == Brightness.dark)),
     );
+  }
+
+
+  Widget _buildCategoryBar(BuildContext context, ThemeData theme, bool isDark) {
+    switch (_categoryStyle) {
+      case CategoryStyle.tabBar:
+        // TabBar-like scrollable tabs
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // 'All' as first tab
+                TextButton(
+                  onPressed: () => _selectCategory(null),
+                  child: Text('All', style: TextStyle(fontWeight: _selectedCategory == null ? FontWeight.w700 : FontWeight.w500)),
+                ),
+                for (int i = 0; i < CategoryListScreen.categories.length; i++)
+                  TextButton(
+                    onPressed: () => _selectCategory(CategoryListScreen.categories[i]),
+                    child: Text(CategoryListScreen.categories[i].toUpperCase(), style: TextStyle(fontWeight: _selectedCategory == CategoryListScreen.categories[i] ? FontWeight.w700 : FontWeight.w500)),
+                  ),
+              ],
+            ),
+          ),
+        );
+
+      case CategoryStyle.pillChips:
+        // Compact pill chips (default behavior)
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: ChoiceChip(
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Text('All', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                    selected: _selectedCategory == null,
+                    onSelected: (_) => _selectCategory(null),
+                    selectedColor: isDark
+                        ? theme.colorScheme.primary.withOpacity(0.30)
+                        : theme.colorScheme.primary.withOpacity(0.14),
+                    side: _selectedCategory == null
+                        ? BorderSide(color: theme.colorScheme.primary.withOpacity(0.22))
+                        : BorderSide.none,
+                    labelStyle: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _selectedCategory == null ? theme.colorScheme.onPrimary : null,
+                    ),
+                  ),
+                ),
+                for (final cat in CategoryListScreen.categories)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6.0),
+                    child: ChoiceChip(
+                      label: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Text(cat.toUpperCase(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      ),
+                      selected: _selectedCategory == cat,
+                      onSelected: (_) => _selectCategory(cat),
+                      selectedColor: isDark
+                          ? theme.colorScheme.primary.withOpacity(0.30)
+                          : theme.colorScheme.primary.withOpacity(0.14),
+                      side: _selectedCategory == cat
+                          ? BorderSide(color: theme.colorScheme.primary.withOpacity(0.26))
+                          : BorderSide.none,
+                      labelStyle: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _selectedCategory == cat ? theme.colorScheme.onPrimary : null,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+
+      case CategoryStyle.segmented:
+        // Segmented-like toggle (uses ToggleButtons inside a horizontal scroll)
+        final List<bool> isSelected = [for (final c in [null, ...CategoryListScreen.categories]) _selectedCategory == c];
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ToggleButtons(
+              isSelected: isSelected,
+              onPressed: (idx) {
+                if (idx == 0) return _selectCategory(null);
+                return _selectCategory(CategoryListScreen.categories[idx - 1]);
+              },
+              borderRadius: BorderRadius.circular(8),
+              constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
+              children: [
+                const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('All')),
+                for (final cat in CategoryListScreen.categories) Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(cat)),
+              ],
+            ),
+          ),
+        );
+    }
   }
 }
 
