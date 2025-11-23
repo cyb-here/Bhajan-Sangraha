@@ -28,7 +28,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   String? _selectedCategory;
   bool _isReordering = false;
   bool _showFavorites = false;
-  CategoryStyle _categoryStyle = CategoryStyle.pillChips;
+  // Default to option C (segmented control)
+  CategoryStyle _categoryStyle = CategoryStyle.segmented;
   final ScrollController _listController = ScrollController();
   final Map<int, GlobalKey> _itemKeys = {};
   int? _highlightedSongId;
@@ -183,10 +184,23 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
     final songsAsync = ref.watch(songsProvider);
     final isDark = theme.brightness == Brightness.dark;
     final isOnline = ref.watch(isOnlineProvider);
+    final accentColor = ref.watch(accentColorProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bhajan Sangraha'),
+        title: GestureDetector(
+          onTap: () {
+            // Cycle through three theme options: light -> dark -> darkGray -> light
+            final cur = ref.read(themeOptionProvider.notifier).state;
+            final next = cur == AppThemeOption.light
+                ? AppThemeOption.dark
+                : cur == AppThemeOption.dark
+                    ? AppThemeOption.darkGray
+                    : AppThemeOption.light;
+            ref.read(themeOptionProvider.notifier).state = next;
+          },
+          child: const Text('Bhajan Sangraha'),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -242,17 +256,6 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
             onSelected: (v) async {
               if (v == 'toggle_favs') { await _toggleFavorites(); return; }
-              if (v == 'toggle_theme') {
-                // Cycle through three theme options: light -> dark -> darkGray -> light
-                final cur = ref.read(themeOptionProvider.notifier).state;
-                final next = cur == AppThemeOption.light
-                    ? AppThemeOption.dark
-                    : cur == AppThemeOption.dark
-                        ? AppThemeOption.darkGray
-                        : AppThemeOption.light;
-                ref.read(themeOptionProvider.notifier).state = next;
-                return;
-              }
 
               // accent color choices
               if (v == 'accent_custom') {
@@ -315,14 +318,6 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
             itemBuilder: (ctx) => [
               PopupMenuItem(value: 'sync', child: Row(children: [const Icon(Icons.sync), const SizedBox(width: 8), const Text('Sync updates')])),
               PopupMenuItem(value: 'toggle_favs', child: Row(children: [Icon(_showFavorites ? Icons.favorite : Icons.favorite_border), const SizedBox(width: 8), Text(_showFavorites ? 'Show all' : 'Show favorites')])),
-              PopupMenuItem(
-                value: 'toggle_theme',
-                child: Row(children: [
-                  Icon(ref.watch(themeOptionProvider) == AppThemeOption.light ? Icons.light_mode : Icons.dark_mode),
-                  const SizedBox(width: 8),
-                  const Text('Toggle theme')
-                ]),
-              ),
               const PopupMenuDivider(),
               const PopupMenuItem(enabled: false, child: Text('Accent color')),
               PopupMenuItem(value: 'accent_green', child: Row(children: [const Icon(Icons.circle, color: Color(0xFF4CAF50)), const SizedBox(width: 8), const Text('Green')])),
@@ -339,7 +334,9 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openSearch(context),
         tooltip: 'Search songs',
-        child: const Icon(Icons.search),
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 4,
+        child: Icon(Icons.search, color: accentColor),
       ),
       body: Column(
         children: [
@@ -432,8 +429,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
                 ],
               ),
             ),
-          // Divider
-          Divider(height: 1, color: theme.dividerColor),
+          // Divider (subtle, slightly more visible)
+          Divider(height: 1, thickness: 0.6, color: theme.dividerColor.withOpacity(0.18)),
 
           // Songs list
           Expanded(
@@ -478,7 +475,7 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
                     return ListView.separated(
                       controller: _listController,
                       itemCount: displayList.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, __) => Divider(height: 1, thickness: 0.6, color: theme.dividerColor.withOpacity(0.18)),
                       itemBuilder: (_, i) {
                         final Song s = displayList[i];
                         final highlighted = _highlightedSongId != null && _highlightedSongId == s.id;
